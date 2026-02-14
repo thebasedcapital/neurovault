@@ -1,0 +1,42 @@
+{
+  "name": "neurovault",
+  "version": "0.1.0",
+  "description": "Unified memory system for OpenClaw — Hebbian learning (BrainBox) + knowledge graph (VaultGraph). An elephant that learns.",
+  "type": "module",
+  "main": "hooks/neurovault/handler.js",
+  "bin": {
+    "neurovault-check": "./bin/check-deps.js"
+  },
+  "openclaw": {
+    "hooks": [
+      "./hooks/neurovault"
+    ]
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "node bin/check-deps.js"
+  },
+  "keywords": [
+    "openclaw",
+    "memory",
+    "hebbian",
+    "knowledge-graph",
+    "agent-memory",
+    "brainbox",
+    "vaultgraph",
+    "ai-agent"
+  ],
+  "author": "Happy Engineering",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slopus/neurovault.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.1"
+  }
+}

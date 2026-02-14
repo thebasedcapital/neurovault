@@ -4,14 +4,13 @@
  * Combines VaultGraph (knowledge graph) and BrainBox (Hebbian memory)
  * for unified memory injection into OpenClaw agent sessions.
  *
- * On command:new (session reset/start), queries both systems in parallel
- * and injects relevant context as a system message.
+ * On agent:bootstrap, queries VaultGraph for relevant context notes
+ * and injects them as additional context for the agent.
  *
  * Event shape from OpenClaw internal hooks:
- *   { type: 'command', action: 'new', sessionKey, context, timestamp, messages: [] }
- *
- * SECURITY: No shell execution. VaultGraph spawned via execFile (array args).
- * BrainBox imported directly. All inputs sanitized.
+ *   { type: 'agent', action: 'bootstrap', sessionKey, context: {
+ *       workspaceDir, bootstrapFiles, cfg, sessionKey, sessionId, agentId
+ *   }, timestamp, messages: [] }
  */
 
 import { recallVaultGraph } from '../../lib/vaultgraph.js';
@@ -36,22 +35,14 @@ const CONFIG = {
 
 const handler = async (event) => {
   try {
-    // Master kill switch
     if (!CONFIG.enabled) return;
 
-    // Check what's available (cached after first call)
     const caps = await checkCapabilities();
     if (!caps.vaultgraph && !caps.brainbox) return;
 
-    // Extract working directory from event context
-    const cwd = event?.context?.cfg?.agents?.defaults?.workspace || process.cwd();
+    const cwd = event?.context?.workspaceDir || process.cwd();
+    const prompt = 'workspace context and project patterns';
 
-    // Use sessionKey as the prompt context hint
-    // For command:new, the actual user message may not be in the event
-    // Use a generic context query based on workspace
-    const prompt = event?.context?.senderId || event?.sessionKey || 'general context';
-
-    // Query both systems in parallel
     const [vgResult, bbResult] = await Promise.allSettled([
       caps.vaultgraph
         ? recallVaultGraph(prompt, {
@@ -69,16 +60,14 @@ const handler = async (event) => {
         : Promise.resolve(null),
     ]);
 
-    // Combine results
     const combined = combineResults(vgResult, bbResult);
     if (!combined) return;
 
-    // Inject as message on the event (OpenClaw reads event.messages after hook)
+    // Inject via messages array on the event
     if (!event.messages) event.messages = [];
     event.messages.push(combined);
-    console.log('[neurovault] Context injected into session');
+    console.log('[neurovault] Context injected into agent bootstrap');
   } catch (err) {
-    // Never crash OpenClaw
     console.error(`[neurovault] Hook error: ${err.message || 'unknown'}`);
   }
 };

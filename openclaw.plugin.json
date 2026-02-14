@@ -1,0 +1,40 @@
+{
+  "id": "neurovault",
+  "kind": "memory",
+  "uiHints": {
+    "vaultPath": {
+      "label": "Vault Path",
+      "placeholder": "~/.openclaw/memory",
+      "help": "Path to markdown vault for VaultGraph knowledge graph"
+    },
+    "bbDbPath": {
+      "label": "BrainBox DB Path",
+      "placeholder": "~/.openclaw/neurovault/brainbox.db",
+      "advanced": true
+    },
+    "vgBudget": {
+      "label": "VaultGraph Token Budget",
+      "placeholder": "3000",
+      "advanced": true
+    },
+    "autoRecall": {
+      "label": "Auto-Recall",
+      "help": "Inject relevant context before every agent prompt"
+    },
+    "autoCapture": {
+      "label": "Auto-Capture",
+      "help": "Learn from tool calls and capture conversation highlights"
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "vaultPath": { "type": "string" },
+      "bbDbPath": { "type": "string" },
+      "vgBudget": { "type": "number" },
+      "autoRecall": { "type": "boolean" },
+      "autoCapture": { "type": "boolean" }
+    }
+  }
+}

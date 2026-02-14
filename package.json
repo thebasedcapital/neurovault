@@ -1,13 +1,13 @@
 {
   "name": "neurovault",
-  "version": "0.1.0",
-  "description": "Unified memory system for OpenClaw — Hebbian learning (BrainBox) + knowledge graph (VaultGraph). An elephant that learns.",
+  "version": "0.2.0",
+  "description": "Hebbian memory plugin for OpenClaw — learns from every tool call, recalls relevant context automatically. BrainBox + VaultGraph.",
   "type": "module",
-  "main": "hooks/neurovault/handler.js",
-  "bin": {
-    "neurovault-check": "./bin/check-deps.js"
-  },
+  "private": true,
   "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
     "hooks": [
       "./hooks/neurovault"
     ]
@@ -24,8 +24,7 @@
     "knowledge-graph",
     "agent-memory",
     "brainbox",
-    "vaultgraph",
-    "ai-agent"
+    "vaultgraph"
   ],
   "author": "Happy Engineering",
   "license": "MIT",
@@ -36,7 +35,12 @@
   "engines": {
     "node": ">=18"
   },
+  "dependencies": {
+    "@sinclair/typebox": "0.34.48",
+    "better-sqlite3": "^11.10.0"
+  },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
     "vitest": "^1.6.1"
   }
 }

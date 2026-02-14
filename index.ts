@@ -25,6 +25,8 @@ import {
   extractFilePaths,
   extractFilePathsFromResult,
   extractToolContext,
+  extractResultKeywords,
+  detectError,
   shouldCapture,
   detectCategory,
   sanitizePrompt,
@@ -221,17 +223,52 @@ const neurovaultPlugin = {
           const paramPaths = extractFilePaths(toolName, params);
 
           // Extract paths from results (for Grep/Glob)
-          const resultText = typeof event.result === "string" ? event.result : "";
+          // event.result can be string, object with .content[].text, or other shapes
+          let resultText = "";
+          if (typeof event.result === "string") {
+            resultText = event.result;
+          } else if (event.result && typeof event.result === "object") {
+            const r = event.result as Record<string, unknown>;
+            if (typeof r.text === "string") {
+              resultText = r.text;
+            } else if (Array.isArray(r.content)) {
+              resultText = (r.content as any[])
+                .filter(b => b && typeof b.text === "string")
+                .map(b => b.text)
+                .join("\n");
+            } else {
+              // Last resort: stringify
+              try { resultText = JSON.stringify(r).slice(0, 2000); } catch {}
+            }
+          }
           const resultPaths = extractFilePathsFromResult(toolName, resultText);
 
           const allPaths = [...new Set([...paramPaths, ...resultPaths])];
 
+          // Extract keywords from result text for richer context matching
+          const resultType = typeof event.result;
+          const resultLen = resultText.length;
+          const keywords = extractResultKeywords(resultText);
+          api.logger.debug?.(`neurovault: result type=${resultType} len=${resultLen} keywords=[${keywords.join(",")}]`);
+          const richContext = keywords.length > 0
+            ? `${context} keywords:${keywords.join(",")}`
+            : context;
+
           for (const path of allPaths) {
-            db.record(path, "file", context);
+            db.record(path, "file", richContext);
           }
 
           // Also record tool usage
-          db.record(toolName, "tool", context);
+          db.record(toolName, "tool", richContext);
+
+          // Detect errors in exec/Bash output
+          const tool = toolName.toLowerCase();
+          if ((tool === "exec" || tool === "bash") && resultText) {
+            const error = detectError(resultText);
+            if (error) {
+              db.record(error, "error", richContext);
+            }
+          }
 
           if (allPaths.length > 0) {
             api.logger.debug?.(`neurovault: learned ${allPaths.length} paths from ${toolName}`);

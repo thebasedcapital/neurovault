@@ -19,8 +19,10 @@ const SYNAPSE_DECAY_RATE = 0.02;
 const ACTIVATION_DECAY_RATE = 0.15;
 const MYELIN_DECAY_RATE = 0.005;
 const SYNAPSE_PRUNE_THRESHOLD = 0.05;
-const CONFIDENCE_GATE = 0.4;
+const CONFIDENCE_GATE = 0.3;
 const CO_ACCESS_WINDOW_SIZE = 10;
+const MAX_SPREAD_HOPS = 3;
+const MAX_SPREAD_FAN_OUT = 10;
 
 // --- Types ---
 
@@ -276,24 +278,58 @@ export class BrainBoxDB {
       results.push({ neuron: this.parseNeuron(neuron), confidence, activation_path: "direct" });
     }
 
-    // Phase 2: Spreading activation (1 hop)
-    const frontier = [...results];
-    for (const seed of frontier) {
-      const synapses = (this.stmts.getSynapses.all(seed.neuron.id) as any[]).slice(0, 10);
-      for (const syn of synapses) {
-        if (syn.weight < 0.3 || activated.has(syn.target_id)) continue;
-        const target = this.stmts.getNeuron.get(syn.target_id) as Neuron | undefined;
-        if (!target || (type && target.type !== type)) continue;
-        const spreadConf = seed.confidence * syn.weight * (1 + target.myelination);
-        if (spreadConf < CONFIDENCE_GATE) continue;
-        activated.add(syn.target_id);
-        results.push({ neuron: this.parseNeuron(target), confidence: Math.min(spreadConf, 0.99), activation_path: "spread" });
+    // Phase 2: Multi-hop spreading activation (BFS by hop level)
+    let frontier: { neuronId: string; confidence: number; chain: string }[] =
+      results.map(r => ({ neuronId: r.neuron.id, confidence: r.confidence, chain: r.neuron.path }));
+
+    for (let hop = 0; hop < MAX_SPREAD_HOPS && frontier.length > 0; hop++) {
+      const nextFrontier: typeof frontier = [];
+
+      for (const seed of frontier) {
+        const allSynapses = this.stmts.getSynapses.all(seed.neuronId) as any[];
+        const synapses = allSynapses.slice(0, MAX_SPREAD_FAN_OUT);
+
+        for (const syn of synapses) {
+          if (syn.weight < 0.3) continue;
+
+          const target = this.stmts.getNeuron.get(syn.target_id) as Neuron | undefined;
+          if (!target) continue;
+          if (type && target.type !== type) continue;
+
+          const spreadConf = seed.confidence * syn.weight * (1 + target.myelination);
+          if (spreadConf < CONFIDENCE_GATE) continue;
+
+          // Convergence: if already activated, take max confidence (Collins & Loftus)
+          if (activated.has(syn.target_id)) {
+            const existing = results.find(r => r.neuron.id === syn.target_id);
+            if (existing && spreadConf > existing.confidence) {
+              existing.confidence = Math.min(spreadConf, 0.99);
+            }
+            continue;
+          }
+
+          const pathLabel = `spread(${hop + 1}) via ${seed.chain}`;
+          results.push({
+            neuron: this.parseNeuron(target),
+            confidence: Math.min(spreadConf, 0.99),
+            activation_path: pathLabel,
+          });
+          activated.add(syn.target_id);
+
+          nextFrontier.push({
+            neuronId: syn.target_id,
+            confidence: Math.min(spreadConf, 0.99),
+            chain: `${seed.chain} → ${target.path}`,
+          });
+        }
       }
+
+      frontier = nextFrontier;
     }
 
     // Phase 3: Myelinated fallback — superhighways get lower gate
     if (results.length < limit) {
-      const MYELIN_GATE = 0.15; // Lower gate: superhighways earned trust through repeated use
+      const MYELIN_GATE = 0.15;
       const top = this.stmts.topByMyelination.all({ type: type || null, limit: limit - results.length }) as Neuron[];
       for (const n of top) {
         if (activated.has(n.id)) continue;
@@ -312,16 +348,25 @@ export class BrainBoxDB {
     const contexts = typeof neuron.contexts === "string" ? JSON.parse(neuron.contexts) as string[] : neuron.contexts;
     const keywords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
     const contextStr = contexts.join(" ").toLowerCase();
+
+    // Keyword matching (50% weight — higher than Claude Code's 40% since we lack embeddings)
     const matchCount = keywords.filter(k => contextStr.includes(k)).length;
-    score += (keywords.length > 0 ? matchCount / keywords.length : 0) * 0.4;
-    score += neuron.myelination * 0.3;
+    score += (keywords.length > 0 ? matchCount / keywords.length : 0) * 0.5;
+
+    // Myelination (20% weight)
+    score += neuron.myelination * 0.2;
+
+    // Recency (20% weight)
     if (neuron.last_accessed) {
       const ageMs = Date.now() - new Date(neuron.last_accessed).getTime();
       score += Math.max(0, 1 - ageMs / (168 * 3_600_000)) * 0.2;
     }
+
+    // Path match (10% weight)
     const pathLower = neuron.path.toLowerCase();
     const pathMatches = keywords.filter(k => pathLower.includes(k)).length;
     score += (keywords.length > 0 ? pathMatches / keywords.length : 0) * 0.1;
+
     return Math.min(score, 1.0);
   }
 

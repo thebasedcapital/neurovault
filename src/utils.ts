@@ -123,6 +123,69 @@ export function extractToolContext(toolName: string, params: Record<string, unkn
   }
 }
 
+// --- Extract rich keywords from tool results for better recall ---
+
+const STOP_WORDS = new Set([
+  "the", "and", "for", "that", "this", "with", "from", "are", "was", "were",
+  "been", "have", "has", "had", "not", "but", "can", "will", "all", "its",
+  "you", "your", "which", "when", "what", "how", "each", "into", "more",
+  "also", "than", "then", "them", "they", "just", "only", "some", "any",
+  "use", "used", "uses", "using", "file", "line", "code", "true", "false",
+  "null", "undefined", "return", "const", "let", "var", "function", "import",
+  "export", "default", "type", "string", "number", "boolean", "void", "new",
+]);
+
+/**
+ * Extract meaningful keywords from tool result text.
+ * These get stored as neuron contexts for better Phase 1 keyword matching.
+ */
+export function extractResultKeywords(resultText: string, maxKeywords = 8): string[] {
+  if (!resultText || resultText.length < 20) return [];
+
+  // Extract identifiers: camelCase, PascalCase, UPPER_CASE, snake_case
+  const identifiers = resultText.match(/\b[A-Z_][A-Z_0-9]{2,}\b|\b[a-z][a-zA-Z0-9]{3,}\b/g) || [];
+
+  // Count frequency, filter stop words
+  const freq = new Map<string, number>();
+  for (const id of identifiers) {
+    const lower = id.toLowerCase();
+    if (STOP_WORDS.has(lower) || lower.length < 4) continue;
+    freq.set(lower, (freq.get(lower) || 0) + 1);
+  }
+
+  // Return top keywords by frequency
+  return [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, maxKeywords)
+    .map(([word]) => word);
+}
+
+// --- Error detection from tool results ---
+
+const ERROR_PATTERNS = [
+  /Error:\s+(.{10,80})/,
+  /ENOENT:\s+(.{10,80})/,
+  /EACCES:\s+(.{10,80})/,
+  /command not found:\s*(\S+)/,
+  /Cannot find module\s+'([^']+)'/,
+  /SyntaxError:\s+(.{10,80})/,
+  /TypeError:\s+(.{10,80})/,
+  /FATAL:\s+(.{10,80})/,
+];
+
+/**
+ * Detect error signatures in tool output text.
+ * Returns a normalized error string or null if no error found.
+ */
+export function detectError(resultText: string): string | null {
+  if (!resultText || resultText.length < 10) return null;
+  for (const pat of ERROR_PATTERNS) {
+    const m = resultText.match(pat);
+    if (m) return m[0].slice(0, 100);
+  }
+  return null;
+}
+
 // --- Capture filtering (facts, preferences, decisions from conversations) ---
 
 const MEMORY_TRIGGERS = [

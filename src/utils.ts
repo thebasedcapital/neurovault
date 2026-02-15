@@ -91,13 +91,18 @@ export function extractFilePathsFromResult(toolName: string, resultText: string)
   return [];
 }
 
+function resolveTilde(p: string): string {
+  if (p.startsWith("~/")) return (process.env.HOME || "/root") + p.slice(1);
+  return p;
+}
+
 function extractPathsFromCommand(cmd: string): string[] {
-  // Match absolute file paths in common commands
-  const matches = cmd.match(/(?:^|\s)(\/[^\s;|&>]+)/g);
+  // Match absolute and ~/ file paths in common commands
+  const matches = cmd.match(/(?:^|\s)((?:\/|~\/)[^\s;|&>]+)/g);
   if (!matches) return [];
   return matches
-    .map(m => m.trim())
-    .filter(p => p.includes("/") && !p.startsWith("/dev/") && !p.startsWith("/proc/"));
+    .map(m => resolveTilde(m.trim()))
+    .filter(p => p.startsWith("/") && !p.startsWith("/dev/") && !p.startsWith("/proc/"));
 }
 
 // --- Extract query context from tool params ---

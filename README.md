@@ -32,25 +32,47 @@ Together: **declarative memory** (what you know) + **procedural memory** (how yo
 ## Install
 
 ```bash
-npm install -g neurovault
-openclaw hooks install neurovault
-openclaw hooks enable neurovault
+# Clone the repo
+git clone https://github.com/thebasedcapital/neurovault.git
+cd neurovault && npm install
+
+# Install as OpenClaw plugin
+openclaw --dev plugins install -l /path/to/neurovault
+```
+
+Then set the memory slot in `~/.openclaw-dev/openclaw.json`:
+
+```json
+{
+  "plugins": {
+    "slots": {
+      "memory": "neurovault"
+    }
+  }
+}
 ```
 
 ### Memory Backends (install at least one)
 
 ```bash
-# VaultGraph — Rust CLI, knowledge graph
-brew install vaultgraph
+# VaultGraph — Rust CLI, knowledge graph over markdown notes
+# https://github.com/thebasedcapital/vaultgraph
+cargo install vaultgraph
 
-# BrainBox — Node.js, Hebbian memory
-npm install -g brainbox
+# BrainBox — Hebbian memory engine (optional, enhances recall)
+# https://github.com/thebasedcapital/brainbox
+npm install brainbox-hebbian
 ```
 
 ### Verify
 
 ```bash
-neurovault-check
+# Check that backends are available
+./bin/check-deps.js
+
+# Quick test with OpenClaw
+openclaw --dev agent --agent main --local -m "test message"
+# Look for [neurovault] in logs: ~/.openclaw-dev/logs/gateway.log
 ```
 
 ## Configuration

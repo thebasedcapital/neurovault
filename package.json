@@ -1,9 +1,21 @@
 {
   "name": "neurovault",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Hebbian memory plugin for OpenClaw — learns from every tool call, recalls relevant context automatically. BrainBox + VaultGraph.",
   "type": "module",
-  "private": true,
+  "main": "./index.ts",
+  "bin": {
+    "neurovault-check": "./bin/check-deps.js"
+  },
+  "files": [
+    "index.ts",
+    "src/",
+    "lib/",
+    "hooks/",
+    "bin/",
+    "openclaw.plugin.json",
+    "README.md"
+  ],
   "openclaw": {
     "extensions": [
       "./index.ts"

@@ -4,7 +4,7 @@ Unified memory system for OpenClaw agents. Combines **Hebbian learning** (BrainB
 
 ## How It Works
 
-On every `session:start`, NeuroVault queries two memory systems in parallel and injects relevant context:
+Before every agent prompt (`before_agent_start`), NeuroVault queries two memory systems in parallel and injects relevant context:
 
 ```
 [neurovault] Unified memory context for this session:
@@ -79,7 +79,7 @@ Environment variables (all optional):
 ## Architecture
 
 ```
-OpenClaw session:start event
+OpenClaw before_agent_start event
     |
     |---> VaultGraph (Rust subprocess, <5ms)
     |     Spreading activation over wikilink graph

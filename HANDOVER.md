@@ -27,7 +27,7 @@ Fully local. Zero API keys. No network calls.
 - **Gateway:** port 19001, launchd `ai.openclaw.dev`
 - **Config:** `~/.openclaw-dev/openclaw.json`
 - **DB:** `~/.openclaw/neurovault/brainbox.db` (NOT in `.openclaw-dev/`)
-- **Vault:** `~/.openclaw/memory` (default) or `~/.claude/projects/-Users-bbclaude/memory/`
+- **Vault:** `~/.openclaw/memory` (default) or `~/.claude/projects/-Users-USERNAME/memory/`
 - **Model:** `fireworks/accounts/fireworks/models/glm-4p7` (GLM-4.7)
 - **Restart:** `launchctl kickstart -k gui/$(id -u)/ai.openclaw.dev`
 - **CLI test:** `openclaw --dev agent --agent main --local -m "message"`
